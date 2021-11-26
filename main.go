@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	topicARN = "arn:aws:sns:us-east-1:161142984839:ContactsFredy"
+	topicARN = "arn:aws:sns:us-east-2:161142984839:contactsFredy"
 )
 
 type (
@@ -39,15 +39,12 @@ func handleRequest(ctx context.Context, e events.DynamoDBEvent) error {
 		users[index] = userGot
 	}
 
-	sess, err := session.NewSessionWithOptions(session.Options{
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
 		Config: aws.Config{
 			Region: aws.String(os.Getenv("AWS_REGION")),
 		},
-	})
-	if err != nil {
-		log.Printf("error creating session: %v", err)
-		return err
-	}
+	}))
 
 	svc := sns.New(sess)
 	dataToSend, err := json.Marshal(users)
@@ -78,5 +75,4 @@ func UnmarshalDataToUserStruct(attributes map[string]events.DynamoDBAttributeVal
 		FirstName: firstName,
 		LastName:  lastName,
 	}
-
 }
