@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -14,8 +15,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/sns"
 )
 
+const (
+	insertType = "INSERT"
+)
+
 var (
-	topicARN = "arn:aws:sns:us-east-2:161142984839:contactsFredy"
+	topicARN = "arn:aws:sns:us-east-2:161142984839:contactsDynamoFredy"
 )
 
 type (
@@ -32,11 +37,18 @@ func main() {
 }
 
 func handleRequest(ctx context.Context, e events.DynamoDBEvent) error {
-	users := make([]User, len(e.Records))
-	for index, record := range e.Records {
+	users := make([]User, 0)
+	for _, record := range e.Records {
 		fmt.Printf("Processing request data for event ID %s, type %s.\n", record.EventID, record.EventName)
-		userGot := UnmarshalDataToUserStruct(record.Change.NewImage)
-		users[index] = userGot
+		if strings.EqualFold(record.EventName, insertType) {
+			userGot := UnmarshalDataToUserStruct(record.Change.NewImage)
+			users = append(users, userGot)
+		}
+	}
+
+	if len(users) == 0 {
+		log.Printf("no records were inserted, skipping publishing event")
+		return nil
 	}
 
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
